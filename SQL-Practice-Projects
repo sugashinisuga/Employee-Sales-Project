@@ -1,0 +1,213 @@
+
+-- 1. Database & Table Creation with Constraints
+-- =====================================================
+
+-- Create Database
+CREATE DATABASE CompanyDB;
+USE CompanyDB;
+
+-- Create Department Table
+CREATE TABLE Department (
+    DeptID INT PRIMARY KEY,
+    DeptName VARCHAR(50) UNIQUE NOT NULL
+);
+
+-- Create Employee Table with Constraints
+CREATE TABLE Employee (
+    EmpID INT AUTO_INCREMENT PRIMARY KEY,
+    EmpName VARCHAR(50) NOT NULL,
+    DeptID INT,
+    Salary DECIMAL(10,2) CHECK (Salary > 0),
+    HireDate DATE DEFAULT (CURRENT_DATE),
+    FOREIGN KEY (DeptID) REFERENCES Department(DeptID)
+);
+
+-- Create Sales Table
+CREATE TABLE Sales (
+    SaleID INT AUTO_INCREMENT PRIMARY KEY,
+    EmpID INT,
+    SaleAmount DECIMAL(10,2) NOT NULL,
+    SaleDate DATE,
+    FOREIGN KEY (EmpID) REFERENCES Employee(EmpID)
+);
+
+-- =====================================================
+-- 2. Data Operations (INSERT, UPDATE, DELETE)
+-- =====================================================
+
+-- Insert Departments
+INSERT INTO Department VALUES (101, 'HR'), (102, 'IT'), (103, 'Finance');
+
+-- Insert Employees
+INSERT INTO Employee (EmpName, DeptID, Salary, HireDate) VALUES
+('Amit Sharma', 101, 50000, '2023-01-15'),
+('Neha Verma', 102, 60000, '2023-03-10'),
+('Ravi Kumar', 103, 70000, '2023-05-20'),
+('Priya Singh', 102, 55000, '2023-07-25');
+
+-- Update Employee Salary
+UPDATE Employee SET Salary = Salary + 5000 WHERE EmpName = 'Neha Verma';
+
+-- Delete an Employee
+DELETE FROM Employee WHERE EmpName = 'Ravi Kumar';
+
+-- =====================================================
+-- 3. Joins (INNER, LEFT)
+-- =====================================================
+
+-- Show employees with their department names
+SELECT e.EmpName, d.DeptName, e.Salary
+FROM Employee e
+INNER JOIN Department d ON e.DeptID = d.DeptID;
+
+-- Show all employees and their sales (including those with no sales)
+SELECT e.EmpName, s.SaleAmount, s.SaleDate
+FROM Employee e
+LEFT JOIN Sales s ON e.EmpID = s.EmpID;
+
+-- =====================================================
+-- 4. Functions, Grouping & Filtering
+-- =====================================================
+
+-- Find average salary by department
+SELECT d.DeptName, AVG(e.Salary) AS AvgSalary
+FROM Employee e
+JOIN Department d ON e.DeptID = d.DeptID
+GROUP BY d.DeptName
+HAVING AvgSalary > 55000;
+
+-- =====================================================
+-- 5. Subqueries
+-- =====================================================
+
+-- Employees earning more than average salary
+SELECT EmpName, Salary
+FROM Employee
+WHERE Salary > (SELECT AVG(Salary) FROM Employee);
+
+-- =====================================================
+-- 6. Set Operators (UNION, UNION ALL)
+-- =====================================================
+
+-- List all employee names and department names together
+SELECT EmpName AS Name FROM Employee
+UNION
+SELECT DeptName AS Name FROM Department;
+
+-- List with duplicates allowed
+SELECT EmpName AS Name FROM Employee
+UNION ALL
+SELECT DeptName AS Name FROM Department;
+
+-- =====================================================
+-- 7. Trigger
+-- =====================================================
+
+-- Create log table for salary updates
+CREATE TABLE SalaryLog (
+    LogID INT AUTO_INCREMENT PRIMARY KEY,
+    EmpID INT,
+    OldSalary DECIMAL(10,2),
+    NewSalary DECIMAL(10,2),
+    UpdateDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+-- ============================================================
+-- Trigger to log salary changes
+-- ============================================================
+
+DELIMITER //
+CREATE TRIGGER trg_salary_update
+BEFORE UPDATE ON Employee
+FOR EACH ROW
+BEGIN
+    IF OLD.Salary <> NEW.Salary THEN
+        INSERT INTO SalaryLog (EmpID, OldSalary, NewSalary)
+        VALUES (OLD.EmpID, OLD.Salary, NEW.Salary);
+    END IF;
+END;
+//
+DELIMITER ;
+
+-- ============================================================
+-- Update salary of an employee
+-- ============================================================
+
+UPDATE Employee 
+SET Salary = Salary + 1000
+WHERE EmpID = 1;
+
+-- ==========================================================
+-- Now check the log table
+-- ===========================================================
+
+SELECT * FROM SalaryLog;
+
+-- =====================================================
+-- 8. Stored Procedure & Function
+-- Stored Procedure: Get employees by department
+-- ====================================================
+DELIMITER //
+CREATE PROCEDURE GetEmployeesByDept(IN dept_name VARCHAR(50))
+BEGIN
+    SELECT e.EmpName, e.Salary
+    FROM Employee e
+    JOIN Department d ON e.DeptID = d.DeptID
+    WHERE d.DeptName = dept_name;
+END;
+//
+DELIMITER ;
+-- =================================================
+-- Call the procedure for a specific department
+-- =================================================
+
+CALL GetEmployeesByDept('HR');
+
+-- =================================================
+-- Checking if Procedure Exists
+-- =================================================
+
+SHOW PROCEDURE STATUS LIKE 'GetEmployeesByDept';
+
+-- ===================================================
+-- Function: Calculate yearly bonus (10% of salary)
+-- ===================================================
+
+DELIMITER //
+CREATE FUNCTION CalculateBonus(emp_salary DECIMAL(10,2))
+RETURNS DECIMAL(10,2)
+DETERMINISTIC
+BEGIN
+    RETURN emp_salary * 0.10;
+END;
+//
+DELIMITER ;
+
+-- ==================================================
+-- Using the function with a fixed value
+-- ==================================================
+
+SELECT CalculateBonus(50000) AS Bonus;
+
+-- ================================================
+-- Using the function with Employee table
+-- ================================================
+
+SELECT EmpName, Salary, CalculateBonus(Salary) AS Bonus
+FROM Employee;
+
+-- =====================================================
+-- 9. Window Functions (RANK, DENSE_RANK)
+-- =====================================================
+
+-- Rank employees by salary
+SELECT EmpName, Salary,
+       RANK() OVER (ORDER BY Salary DESC) AS SalaryRank,
+       DENSE_RANK() OVER (ORDER BY Salary DESC) AS SalaryDenseRank
+FROM Employee;
+
+-- =====================================================
+-- End of Project
+-- Topics Covered: DB & Tables, Constraints, CRUD Operations,
+-- Joins, Functions, Grouping, Subqueries, Set Operators,
+-- Triggers, Stored Procedure & Functions, Window Functions
+-- =====================================================
